@@ -11,16 +11,17 @@ import os
 import numpy as np
 import torch
 from torch.autograd import Variable
+import math
 
 opt = TrainOptions().parse()
 iter_path = os.path.join(opt.checkpoints_dir, opt.name, 'iter.txt')
 if opt.continue_train:
     try:
-        start_epoch, epoch_iter = np.loadtxt(iter_path , delimiter=',', dtype=int)
+        start_epoch, epoch_iter = np.loadtxt(iter_path, delimiter=',', dtype=int)
     except:
         start_epoch, epoch_iter = 1, 0
-    print('Resuming from epoch %d at iteration %d' % (start_epoch, epoch_iter))        
-else:    
+    print('Resuming from epoch %d at iteration %d' % (start_epoch, epoch_iter))
+else:
     start_epoch, epoch_iter = 1, 0
 
 if opt.debug:
@@ -38,7 +39,7 @@ print('#training images = %d' % dataset_size)
 model = create_model(opt)
 visualizer = Visualizer(opt)
 
-total_steps = (start_epoch-1) * dataset_size + epoch_iter
+total_steps = (start_epoch - 1) * dataset_size + epoch_iter
 
 display_delta = total_steps % opt.display_freq
 print_delta = total_steps % opt.print_freq
@@ -55,21 +56,21 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
         # whether to collect output images
         save_fake = total_steps % opt.display_freq == display_delta
-        #save_fake = False
+        # save_fake = False
 
         ############## Forward Pass #####################
         if 'label' not in data.keys():
-            continue#
-        losses, generated = model(Variable(data['label'].cuda()), Variable(data['inst'].cuda()), 
-            Variable(data['image'].cuda()), Variable(data['feat'].cuda()), infer=save_fake)
+            continue  #
+        losses, generated = model(Variable(data['label'].cuda()), Variable(data['inst'].cuda()),
+                                  Variable(data['image'].cuda()), Variable(data['feat'].cuda()), infer=save_fake)
 
         # sum per device losses
-        losses = [ torch.mean(x) if not isinstance(x, int) else x for x in losses ]
+        losses = [torch.mean(x) if not isinstance(x, int) else x for x in losses]
         loss_dict = dict(zip(model.module.loss_names, losses))
 
         # calculate final loss scalar
         loss_D = (loss_dict['D_fake'] + loss_dict['D_real']) * 0.5
-        loss_G = loss_dict['G_GAN'] + loss_dict.get('G_GAN_Feat',0) + loss_dict.get('G_VGG',0)
+        loss_G = loss_dict['G_GAN'] + loss_dict.get('G_GAN_Feat', 0) + loss_dict.get('G_VGG', 0)
 
         ############### Backward Pass ####################
         # update generator weights
@@ -82,7 +83,13 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         loss_D.backward()
         model.module.optimizer_D.step()
 
-        #call(["nvidia-smi", "--format=csv", "--query-gpu=memory.used,memory.free"]) 
+        # call(["nvidia-smi", "--format=csv", "--query-gpu=memory.used,memory.free"])
+
+        #################### Calculate rmse errors ####################
+        abs_diff = (generated.data[0] - data['image'][0]).abs()
+        mse = float((torch.pow(abs_diff, 2)).mean())
+        rmse = math.sqrt(mse)
+        loss_dict['rmse'] = rmse
 
         ############## Display results and errors ##########
         ### print out errors
@@ -102,12 +109,12 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         ### save latest model
         if total_steps % opt.save_latest_freq == save_delta:
             print('saving the latest model (epoch %d, total_steps %d)' % (epoch, total_steps))
-            model.module.save('latest')            
+            model.module.save('latest')
             np.savetxt(iter_path, (epoch, epoch_iter), delimiter=',', fmt='%d')
 
         if epoch_iter >= dataset_size:
             break
-       
+
     # end of epoch 
     iter_end_time = time.time()
     print('End of epoch %d / %d \t Time Taken: %d sec' %
@@ -115,10 +122,10 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
     ### save model for this epoch
     if epoch % opt.save_epoch_freq == 0:
-        print('saving the model at the end of epoch %d, iters %d' % (epoch, total_steps))        
+        print('saving the model at the end of epoch %d, iters %d' % (epoch, total_steps))
         model.module.save('latest')
         model.module.save(epoch)
-        np.savetxt(iter_path, (epoch+1, 0), delimiter=',', fmt='%d')
+        np.savetxt(iter_path, (epoch + 1, 0), delimiter=',', fmt='%d')
 
     ### instead of only training the local enhancer, train the entire network after certain iterations
     if (opt.niter_fix_global != 0) and (epoch == opt.niter_fix_global):
