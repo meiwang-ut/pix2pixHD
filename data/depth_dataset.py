@@ -27,7 +27,10 @@ class DepthDataset(BaseDataset):
 
     def __getitem__(self, index):
         data_path = self.data_paths[index]
-        h5f = h5py.File(data_path, "r")
+        try:
+            h5f = h5py.File(data_path, "r")
+        except OSError:
+            return dict()
         rgb = np.array(h5f['rgb'])
         #rgb = np.transpose(rgb, (1, 2, 0))
         depth = np.array(h5f['depth'])

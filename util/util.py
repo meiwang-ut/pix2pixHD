@@ -4,6 +4,8 @@ import numpy as np
 from PIL import Image
 import numpy as np
 import os
+import png
+from skimage.io import imsave
 
 # Converts a Tensor into a Numpy array
 # |imtype|: the desired type of the converted numpy array
@@ -35,8 +37,9 @@ def tensor2label(label_tensor, n_label, imtype=np.uint8):
     return label_numpy.astype(imtype)
 
 def save_image(image_numpy, image_path):
-    image_pil = Image.fromarray(image_numpy)
+    image_pil = png.fromarray(image_numpy, 'RGBA;8')
     image_pil.save(image_path)
+    #imsave(image_path, image_numpy)
 
 def mkdirs(paths):
     if isinstance(paths, list) and not isinstance(paths, str):

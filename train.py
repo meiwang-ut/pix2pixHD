@@ -55,11 +55,13 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
         # whether to collect output images
         save_fake = total_steps % opt.display_freq == display_delta
-        save_fake = False
+        #save_fake = False
 
-        ############## Forward Pass ######################
-        losses, generated = model(Variable(data['label']), Variable(data['inst']), 
-            Variable(data['image']), Variable(data['feat']), infer=save_fake)
+        ############## Forward Pass #####################
+        if 'label' not in data.keys():
+            continue#
+        losses, generated = model(Variable(data['label'].cuda()), Variable(data['inst'].cuda()), 
+            Variable(data['image'].cuda()), Variable(data['feat'].cuda()), infer=save_fake)
 
         # sum per device losses
         losses = [ torch.mean(x) if not isinstance(x, int) else x for x in losses ]
@@ -92,9 +94,9 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
         ### display output images
         if save_fake:
-            visuals = OrderedDict([('input_label', util.tensor2label(data['label'][0], opt.label_nc)),
-                                   ('synthesized_image', util.tensor2im(generated.data[0])),
-                                   ('real_image', util.tensor2im(data['image'][0]))])
+            visuals = OrderedDict([('input_label', data['label'][0].cpu().numpy()),
+                                   ('synthesized_image', generated.data[0].cpu().numpy()),
+                                   ('real_image', data['image'][0].cpu().numpy())])
             visualizer.display_current_results(visuals, epoch, total_steps)
 
         ### save latest model
