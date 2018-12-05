@@ -7,6 +7,7 @@ import time
 from . import util
 from . import html
 import scipy.misc
+from skimage import exposure
 try:
     from StringIO import StringIO  # Python 2.7
 except ImportError:
@@ -37,6 +38,7 @@ class Visualizer():
 
     # |visuals|: dictionary of images to display or save
     def display_current_results(self, visuals, epoch, step):
+        visuals = self.visulize_depth(visuals)
         if self.tf_log: # show images in tensorboard output
             img_summaries = []
             for label, image_numpy in visuals.items():
@@ -131,3 +133,37 @@ class Visualizer():
             txts.append(label)
             links.append(image_name)
         webpage.add_images(ims, txts, links, width=self.win_size)
+
+    def visulize_depth(self, visual):
+        for key in ['synthesized_image', 'real_image']:
+            if key not in visual:
+                continue
+            depth = visual[key]
+            data = np.mean(depth, 0)
+            data[data == 0.0] = np.nan
+
+            maxdepth = np.nanmax(data)
+            mindepth = np.nanmin(data)
+            data = data.copy()
+            data -= mindepth
+            data /= (maxdepth - mindepth)
+
+            gray = np.zeros(list(data.shape) + [3], dtype=data.dtype)
+            data = (1.0 - data)
+            gray[..., :3] = np.dstack((data, data, data))
+
+            # use a greenish color to visualize missing depth
+            gray[np.isnan(data), :] = (97, 160, 123)
+            gray[np.isnan(data), :] /= 255
+
+            gray = exposure.equalize_hist(gray)
+
+            # set alpha channel
+            gray = np.dstack((gray, np.ones(data.shape[:2])))
+            gray[np.isnan(data), -1] = 0.5
+
+            visual[key] = gray * 255
+        return visual
+
+
+
