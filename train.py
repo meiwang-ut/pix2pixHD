@@ -86,25 +86,40 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         # call(["nvidia-smi", "--format=csv", "--query-gpu=memory.used,memory.free"])
 
         #################### Calculate rmse errors ####################
-        abs_diff = (generated.data[0] - data['image'][0]).abs()
-        mse = float((torch.pow(abs_diff, 2)).mean())
-        rmse = math.sqrt(mse)
-        loss_dict['rmse'] = rmse
+        #abs_diff = (generated.data[0] - data['image'][0]).abs()
+       # mse = float((torch.pow(abs_diff, 2)).mean())
+        #rmse = math.sqrt(mse)
+        #loss_dict['rmse'] = rmse
 
         ############## Display results and errors ##########
         ### print out errors
         if total_steps % opt.print_freq == print_delta:
             errors = {k: v.data[0] if not isinstance(v, int) else v for k, v in loss_dict.items()}
             t = (time.time() - iter_start_time) / opt.batchSize
-            visualizer.print_current_errors(epoch, epoch_iter, errors, t)
+            visualizer.print_current_errors(epoch, epoch_iter, errors, t, dataset_size)
             visualizer.plot_current_errors(errors, total_steps)
 
-        ### display output images
+         ### display output images
         if save_fake:
-            visuals = OrderedDict([('input_label', data['label'][0].cpu().numpy()),
-                                   ('synthesized_image', generated.data[0].cpu().numpy()),
-                                   ('real_image', data['image'][0].cpu().numpy())])
+            real_image = data['image'][0].cpu()
+            fake_image = generated.data[0].cpu()
+            source_image = data['label'][0].cpu()
+            visuals = OrderedDict([('input_label', source_image.numpy()),
+                                   ('synthesized_image', fake_image.numpy()),
+                                   ('real_image', real_image.numpy())])
             visualizer.display_current_results(visuals, epoch, total_steps)
+            
+            # Calculate losses
+            valid_mask = real_image > 0
+            real_image = real_image[valid_mask]
+            fake_image = fake_image[valid_mask]
+            abs_diff = (fake_image - real_image).abs()
+            mse = float((torch.pow(abs_diff, 2)).mean())
+            rmse = math.sqrt(mse)
+            absrel = float((abs_diff / real_image).mean())
+            errors = {'rmse': rmse, 'absrel':absrel}
+            visualizer.print_current_errors(epoch, epoch_iter, errors, t, dataset_size)
+            visualizer.plot_current_errors(errors, total_steps)
 
         ### save latest model
         if total_steps % opt.save_latest_freq == save_delta:

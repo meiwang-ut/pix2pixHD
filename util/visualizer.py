@@ -103,8 +103,8 @@ class Visualizer():
                 self.writer.add_summary(summary, step)
 
     # errors: same format as |errors| of plotCurrentErrors
-    def print_current_errors(self, epoch, i, errors, t):
-        message = '(epoch: %d, iters: %d, time: %.3f) ' % (epoch, i, t)
+    def print_current_errors(self, epoch, i, errors, t, total_i):
+        message = '(epoch: %d, iters: %d/%d, time: %.3f) ' % (epoch, i, total_i, t)
         for k, v in errors.items():
             if v != 0:
                 message += '%s: %.3f ' % (k, v)
@@ -125,9 +125,10 @@ class Visualizer():
         links = []
 
         for label, image_numpy in visuals.items():
+            save_rgb = label == 'input_label'
             image_name = '%s_%s.png' % (name, label)
             save_path = os.path.join(image_dir, image_name)
-            util.save_image(image_numpy, save_path)
+            util.save_image(image_numpy, save_path, save_rgb=save_rgb)
 
             ims.append(image_name)
             txts.append(label)
