@@ -21,6 +21,7 @@ opt.no_flip = True  # no flip
 
 data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
+dataset_size = len(data_loader)
 visualizer = Visualizer(opt)
 # create website
 web_dir = os.path.join(opt.results_dir, opt.name, '%s_%s' % (opt.phase, opt.which_epoch))
@@ -40,6 +41,8 @@ else:
     from run_engine import run_trt_engine, run_onnx
 
 errors = dict()
+total_rmse = 0
+total_absrel = 0
 for i, data in enumerate(dataset):
     if i >= opt.how_many:
         break
@@ -65,9 +68,9 @@ for i, data in enumerate(dataset):
 
     real_image = data['image'][0].cpu()
     fake_image = generated.data[0].cpu()
-    source_image = data['label'][0].cpu()
+    source_image = data['label'][0]
 
-    visuals = OrderedDict([('input_label', source_image.numpy()),
+    visuals = OrderedDict([('input_label', util.tensor2label(source_image, opt.label_nc)),
                            ('synthesized_image', fake_image.numpy()),
                            ('real_image', real_image.numpy())])
     img_path = data['path']
@@ -82,11 +85,13 @@ for i, data in enumerate(dataset):
     mse = float((torch.pow(abs_diff, 2)).mean())
     rmse = math.sqrt(mse)
     absrel = float((abs_diff / real_image).mean())
+    total_rmse += rmse
+    total_absrel += absrel
     errors[i] = {'rmse': rmse, 'absrel': absrel}
 
 webpage.save()
 
-# as requested in comment
+errors['average'] = {'rmse': total_rmse/dataset_size, 'absrel': total_absrel/dataset_size}
 errorDict = {'errors': errors}
 error_dir = os.path.join(opt.results_dir, 'loss.txt')
 with open(error_dir, 'w') as file:

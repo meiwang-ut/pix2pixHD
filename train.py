@@ -103,8 +103,8 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         if save_fake:
             real_image = data['image'][0].cpu()
             fake_image = generated.data[0].cpu()
-            source_image = data['label'][0].cpu()
-            visuals = OrderedDict([('input_label', source_image.numpy()),
+            source_image = data['label'][0]
+            visuals = OrderedDict([('input_label', util.tensor2label(source_image, opt.label_nc)),
                                    ('synthesized_image', fake_image.numpy()),
                                    ('real_image', real_image.numpy())])
             visualizer.display_current_results(visuals, epoch, total_steps)

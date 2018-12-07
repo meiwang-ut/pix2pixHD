@@ -41,7 +41,9 @@ def save_image(image_numpy, image_path, save_rgb=False):
         image_pil = png.fromarray(image_numpy, 'RGBA;8')
         image_pil.save(image_path)
     else:
-        imsave(image_path, image_numpy)
+        #imsave(image_path, image_numpy)
+        image_pil = Image.fromarray(image_numpy)
+        image_pil.save(image_path)
 
 def mkdirs(paths):
     if isinstance(paths, list) and not isinstance(paths, str):
