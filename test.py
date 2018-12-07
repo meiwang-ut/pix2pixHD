@@ -10,6 +10,8 @@ import util.util as util
 from util.visualizer import Visualizer
 from util import html
 import torch
+import math
+import json
 
 opt = TestOptions().parse(save=False)
 opt.nThreads = 1   # test code only supports nThreads = 1
@@ -36,7 +38,8 @@ if not opt.engine and not opt.onnx:
         print(model)
 else:
     from run_engine import run_trt_engine, run_onnx
-    
+
+errors = dict()
 for i, data in enumerate(dataset):
     if i >= opt.how_many:
         break
@@ -59,11 +62,34 @@ for i, data in enumerate(dataset):
         generated = run_onnx(opt.onnx, opt.data_type, minibatch, [data['label'], data['inst']])
     else:        
         generated = model.inference(data['label'], data['inst'], data['image'])
-        
-    visuals = OrderedDict([('input_label', util.tensor2label(data['label'][0], opt.label_nc)),
-                           ('synthesized_image', util.tensor2im(generated.data[0]))])
+
+    real_image = data['image'][0].cpu()
+    fake_image = generated.data[0].cpu()
+    source_image = data['label'][0].cpu()
+
+    visuals = OrderedDict([('input_label', source_image.numpy()),
+                           ('synthesized_image', fake_image.numpy()),
+                           ('real_image', real_image.numpy())])
     img_path = data['path']
     print('process image... %s' % img_path)
     visualizer.save_images(webpage, visuals, img_path)
 
+    # calculate losses
+    valid_mask = real_image > 0
+    real_image = real_image[valid_mask]
+    fake_image = fake_image[valid_mask]
+    abs_diff = (fake_image - real_image).abs()
+    mse = float((torch.pow(abs_diff, 2)).mean())
+    rmse = math.sqrt(mse)
+    absrel = float((abs_diff / real_image).mean())
+    errors[i] = {'rmse': rmse, 'absrel': absrel}
+
 webpage.save()
+
+# as requested in comment
+errorDict = {'errors': errors}
+error_dir = os.path.join(opt.results_dir, 'loss.txt')
+with open(error_dir, 'w') as file:
+    file.write(json.dumps(errorDict))  # use `json.loads` to do the revers
+
+
