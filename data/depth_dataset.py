@@ -8,7 +8,9 @@ import h5py
 import numpy as np
 import torch
 import cv2
+from data.dense_to_sparse import UniformSampling, SimulatedStereo, SimulatedReflector, SimulatedWireless
 
+max_depth = np.inf
 
 class DepthDataset(BaseDataset):
     def initialize(self, opt):
@@ -56,9 +58,10 @@ class DepthDataset(BaseDataset):
         return 'DepthDataset'
 
     def create_sparse_depth(self, rgb, depth):
+        sparsifier = SimulatedReflector(num_samples=self.opt.num_samples, max_depth=max_depth)
         rgb = np.transpose(rgb, (1,2,0))
         depth = depth[:, :, 0]
-        mask_keep = self.dense_to_sparse(rgb, depth)
+        mask_keep = sparsifier.dense_to_sparse(rgb, depth)
         sparse_depth = np.zeros(depth.shape)
         sparse_depth[mask_keep] = depth[mask_keep]
         rgbd = np.append(rgb, np.expand_dims(sparse_depth, axis=2), axis=2)
