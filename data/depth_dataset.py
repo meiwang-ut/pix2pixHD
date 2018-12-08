@@ -7,6 +7,7 @@ from PIL import Image
 import h5py
 import numpy as np
 import torch
+import cv2
 
 
 class DepthDataset(BaseDataset):
@@ -32,19 +33,18 @@ class DepthDataset(BaseDataset):
         except OSError:
             return dict()
         rgb = np.array(h5f['rgb'])
-        #rgb = np.transpose(rgb, (1, 2, 0))
         depth = np.array(h5f['depth'])
         depth = np.dstack((depth, depth, depth))
-        depth = np.transpose(depth, (2, 0, 1))
+        depth = np.transpose(depth, (2, 0, 1))  # chanel first
+        if self.opt.sparse:
+            sparse_depth = self.create_sparse_depth(depth)
+            rgbd = np.append(rgb, np.expand_dims(sparse_depth, axis=2), axis=2)
         rgb = torch.tensor(rgb, dtype=torch.float)
         depth = torch.tensor(depth, dtype=torch.float)
         input_dict = {'label': rgb, 'inst': 0, 'image': depth,
                       'feat': 0, 'path': data_path}
-        #print("=" * 10)
-        #print(rgb.shape)
-        #print(depth.shape)
-        #print(rgb)
-        #print(depth)
+        if self.opt.sparse:
+            input_dict['label'] = rgbd
         return input_dict
 
     def __len__(self):
@@ -52,3 +52,35 @@ class DepthDataset(BaseDataset):
 
     def name(self):
         return 'DepthDataset'
+
+    def create_sparse_depth(self, rgb, depth):
+        mask_keep = self.dense_to_sparse(rgb, depth)
+        sparse_depth = np.zeros(depth.shape)
+        sparse_depth[mask_keep] = depth[mask_keep]
+
+        return sparse_depth
+
+    def dense_to_sparse(self, rgb, depth, max_depth=0.0, dilate_kernel=3, dilate_iterations=1):
+        gray = self.rgb2grayscale(rgb)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        gx = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=5)
+        gy = cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=5)
+
+        depth_mask = np.bitwise_and(depth != 0.0, depth <= max_depth)
+
+        edge_fraction = float(self.num_samples) / np.size(depth)
+
+        mag = cv2.magnitude(gx, gy)
+        min_mag = np.percentile(mag[depth_mask], 100 * (1.0 - edge_fraction))
+        mag_mask = mag >= min_mag
+
+        if dilate_iterations >= 0:
+            kernel = np.ones((dilate_kernel, dilate_kernel), dtype=np.uint8)
+            cv2.dilate(mag_mask.astype(np.uint8), kernel, iterations=dilate_iterations)
+
+        mask = np.bitwise_and(mag_mask, depth_mask)
+        return mask
+
+    def rgb2grayscale(self, rgb):
+        return rgb[:, :, 0] * 0.2989 + rgb[:, :, 1] * 0.587 + rgb[:, :, 2] * 0.114
+
