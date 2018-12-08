@@ -61,7 +61,7 @@ class Result(object):
             'mse': self.mse,
             'rmse': self.rmse,
             'mae': self.mae,
-            'lg10': self.log10,
+            'lg10': self.lg10,
             'absrel': self.absrel,
             'delta1': self.delta1,
             'delta2': self.delta2,

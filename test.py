@@ -124,6 +124,7 @@ errorDict = {'errors': errors}
 error_dir = os.path.join(opt.results_dir, 'loss_%s.txt'%opt.name)
 with open(error_dir, 'w') as file:
     file.write(json.dumps(errorDict))  # use `json.loads` to do the revers
+print("Finish writing at ", error_dir)
 
 
 
