@@ -43,6 +43,9 @@ else:
 errors = dict()
 total_rmse = 0
 total_absrel = 0
+total_delta_1 = 0
+total_delta_2 = 0
+total_delta_3 = 0
 for i, data in enumerate(dataset):
     if i >= opt.how_many:
         break
@@ -87,15 +90,23 @@ for i, data in enumerate(dataset):
     mse = float((torch.pow(abs_diff, 2)).mean())
     rmse = math.sqrt(mse)
     absrel = float((abs_diff / real_image).mean())
+    maxRatio = torch.max(fake_image/real_image, real_image/fake_image)
+    delta1 = float((maxRatio < 1.25).float().mean())
+    delta2 = float((maxRatio < 1.25 ** 2).float().mean())
+    delta3 = float((maxRatio < 1.25 ** 3).float().mean())
     total_rmse += rmse
     total_absrel += absrel
-    errors[i] = {'rmse': rmse, 'absrel': absrel}
+    total_delta_1 += delta1
+    total_delta_2 += delta2
+    total_delta_3 += delta3
+    errors[i] = {'rmse': rmse, 'absrel': absrel, 'delta1': delta1, 'delta2': delta2, 'delta3': delta3}
 
 webpage.save()
 
-errors['average'] = {'rmse': total_rmse/dataset_size, 'absrel': total_absrel/dataset_size}
+errors['average'] = {'rmse': total_rmse/dataset_size, 'absrel': total_absrel/dataset_size,
+                     'delta1': total_delta_1/dataset_size, 'delta2': total_delta_1/dataset_size, 'delta3': total_delta_1/dataset_size}
 errorDict = {'errors': errors}
-error_dir = os.path.join(opt.results_dir, 'loss.txt')
+error_dir = os.path.join(opt.results_dir, 'loss_%s.txt'%opt.name)
 with open(error_dir, 'w') as file:
     file.write(json.dumps(errorDict))  # use `json.loads` to do the revers
 
