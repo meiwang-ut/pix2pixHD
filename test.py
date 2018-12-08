@@ -2,16 +2,17 @@
 ### Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 import os
 from collections import OrderedDict
-from torch.autograd import Variable
 from options.test_options import TestOptions
 from data.data_loader import CreateDataLoader
 from models.models import create_model
-import util.util as util
 from util.visualizer import Visualizer
 from util import html
+from metrics import AverageMeter, Result
 import torch
 import math
 import json
+import time
+
 
 opt = TestOptions().parse(save=False)
 opt.nThreads = 1   # test code only supports nThreads = 1
@@ -41,12 +42,16 @@ else:
     from run_engine import run_trt_engine, run_onnx
 
 errors = dict()
-total_rmse = 0
+"""total_rmse = 0
 total_absrel = 0
 total_delta_1 = 0
 total_delta_2 = 0
-total_delta_3 = 0
+total_delta_3 = 0"""
+average_meter = AverageMeter()
+end = time.time()
 for i, data in enumerate(dataset):
+    data_time = time.time() - end
+    end = time.time()
     if i >= opt.how_many:
         break
     if opt.data_type == 16:
@@ -69,6 +74,8 @@ for i, data in enumerate(dataset):
     else:        
         generated = model.inference(data['label'], data['inst'], data['image'])
 
+    gpu_time = time.time() - end
+
     real_image = data['image'][0].cpu()
     fake_image = generated.data[0].cpu()
     source_image = data['label'][0].cpu()
@@ -83,7 +90,7 @@ for i, data in enumerate(dataset):
     visualizer.save_images(webpage, visuals, img_path)
 
     # calculate losses
-    valid_mask = real_image > 0
+    """valid_mask = real_image > 0
     real_image = real_image[valid_mask]
     fake_image = fake_image[valid_mask]
     abs_diff = (fake_image - real_image).abs()
@@ -99,15 +106,24 @@ for i, data in enumerate(dataset):
     total_delta_1 += delta1
     total_delta_2 += delta2
     total_delta_3 += delta3
-    errors[i] = {'rmse': rmse, 'absrel': absrel, 'delta1': delta1, 'delta2': delta2, 'delta3': delta3}
+    errors[i] = {'rmse': rmse, 'absrel': absrel, 'delta1': delta1, 'delta2': delta2, 'delta3': delta3}"""
+    result = Result()
+    result.evaluate(fake_image, real_image)
+    average_meter.update(result, gpu_time, data_time, dataset_size)
+    end = time.time()
+    errors[i] = result.to_dict()
 
 webpage.save()
 
-errors['average'] = {'rmse': total_rmse/dataset_size, 'absrel': total_absrel/dataset_size,
+"""errors['average'] = {'rmse': total_rmse/dataset_size, 'absrel': total_absrel/dataset_size,
                      'delta1': total_delta_1/dataset_size, 'delta2': total_delta_1/dataset_size, 'delta3': total_delta_1/dataset_size}
+"""
+avg = average_meter.average()
+errors['average'] = avg.to_dict()
 errorDict = {'errors': errors}
 error_dir = os.path.join(opt.results_dir, 'loss_%s.txt'%opt.name)
 with open(error_dir, 'w') as file:
     file.write(json.dumps(errorDict))  # use `json.loads` to do the revers
+
 
 
