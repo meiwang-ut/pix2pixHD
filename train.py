@@ -107,7 +107,7 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
             real_image = data['image'][0].cpu()
             fake_image = generated.data[0].cpu()
             source_image = data['label'][0].cpu()
-            visuals = OrderedDict([('input_label', ('input_label', source_image.numpy())),
+            visuals = OrderedDict([('input_label', source_image.numpy()),
                                    ('synthesized_image', fake_image.numpy()),
                                    ('real_image', real_image.numpy())])
             visualizer.display_current_results(visuals, epoch, total_steps)
