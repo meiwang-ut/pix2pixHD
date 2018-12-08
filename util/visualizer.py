@@ -7,11 +7,14 @@ import time
 from . import util
 from . import html
 import scipy.misc
+import matplotlib.pyplot as plt
 from skimage import exposure
 try:
     from StringIO import StringIO  # Python 2.7
 except ImportError:
     from io import BytesIO         # Python 3.x
+
+cmap = plt.cm.viridis
 
 class Visualizer():
     def __init__(self, opt):
@@ -136,14 +139,16 @@ class Visualizer():
         webpage.add_images(ims, txts, links, width=self.win_size)
 
     def visulize_depth(self, visual):
+        depth_target_cpu = np.mean(visual['real_image'], axis=0)
+        depth_pred_cpu = np.mean(visual['synthesized_image'], axis=0)
+        d_min = min(np.min(depth_target_cpu), np.min(depth_pred_cpu))
+        d_max = max(np.max(depth_target_cpu), np.max(depth_pred_cpu))
         for key in ['synthesized_image', 'real_image']:
             if key not in visual:
                 continue
-            depth = visual[key]
-            #print(depth.shape)
-            data = np.mean(depth, axis=0)
+            data = np.mean(visual[key], axis=0)
             #print("data", data.shape)
-            data[data == 0.0] = np.nan
+            """data[data == 0.0] = np.nan
 
             maxdepth = np.nanmax(data)
             mindepth = np.nanmin(data)
@@ -166,11 +171,15 @@ class Visualizer():
             gray[np.isnan(data), -1] = 0.5
 
             gray = (gray * 255).astype(np.uint8)
-            #print(gray.shape)
-            visual[key] = gray
+            #print(gray.shape)"""
+            depth_relative = (data - d_min) / (d_max - d_min)
+            rst = 255 * cmap(depth_relative)[:, :, :3]  # H, W, C
+            visual[key] = rst
         if 'input_label' in visual.keys():
             data = visual['input_label']
-            data = data.astype(np.uint8)
+            #data = data.astype(np.uint8)
+            print('rgb', data.shape)
+            data = 255 * np.transpose(data, (1,2,0))
             visual['input_label'] = data
         return visual
 

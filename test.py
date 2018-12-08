@@ -68,9 +68,10 @@ for i, data in enumerate(dataset):
 
     real_image = data['image'][0].cpu()
     fake_image = generated.data[0].cpu()
-    source_image = data['label'][0]
+    source_image = data['label'][0].cpu()
 
-    visuals = OrderedDict([('input_label', util.tensor2label(source_image, opt.label_nc)),
+    visuals = OrderedDict(#[('input_label', util.tensor2label(source_image, opt.label_nc)),
+                           [('input_label', source_image.numpy()),
                            ('synthesized_image', fake_image.numpy()),
                            ('real_image', real_image.numpy())])
     img_path = data['path']
