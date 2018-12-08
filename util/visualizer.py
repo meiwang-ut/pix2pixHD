@@ -177,7 +177,7 @@ class Visualizer():
             visual[key] = rst
         if 'input_label' in visual.keys():
             data = visual['input_label']
-            #data = data.astype(np.uint8)
+            #print(data.shape)
             data = 255 * np.transpose(data, (1,2,0))
             visual['input_label'] = data
         return visual

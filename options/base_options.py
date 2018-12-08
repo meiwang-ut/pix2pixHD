@@ -13,7 +13,7 @@ class BaseOptions():
     def initialize(self):    
         # experiment specifics
         self.parser.add_argument('--sparse', action='store_true', help='if specified, add sparse depth')
-        self.parser.add_argument('--num_samples', default=100, help='number of sparse depth to sample')
+        self.parser.add_argument('--num_samples', default=100, type=int ,help='number of sparse depth to sample')
         self.parser.add_argument('--name', type=str, default='label2city', help='name of the experiment. It decides where to store samples and models')        
         self.parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
         self.parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
