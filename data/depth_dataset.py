@@ -35,11 +35,13 @@ class DepthDataset(BaseDataset):
         rgb = np.array(h5f['rgb'])
         depth = np.array(h5f['depth'])
         depth = np.dstack((depth, depth, depth))
-        depth = np.transpose(depth, (2, 0, 1))  # chanel first
         if self.opt.sparse:
-            sparse_depth = self.create_sparse_depth(depth)
-            rgbd = np.append(rgb, np.expand_dims(sparse_depth, axis=2), axis=2)
+            rgbd = self.create_sparse_depth(rgb, depth)
+            rgbd = np.transpose(rgbd, (2, 0, 1))
+            #print("rgbd", rgbd.shape)
+            rgbd = torch.tensor(rgbd, dtype=torch.float)
         rgb = torch.tensor(rgb, dtype=torch.float)
+        depth = np.transpose(depth, (2, 0, 1))  # chanel first
         depth = torch.tensor(depth, dtype=torch.float)
         input_dict = {'label': rgb, 'inst': 0, 'image': depth,
                       'feat': 0, 'path': data_path}
@@ -54,13 +56,17 @@ class DepthDataset(BaseDataset):
         return 'DepthDataset'
 
     def create_sparse_depth(self, rgb, depth):
+        rgb = np.transpose(rgb, (1,2,0))
+        depth = depth[:, :, 0]
         mask_keep = self.dense_to_sparse(rgb, depth)
         sparse_depth = np.zeros(depth.shape)
         sparse_depth[mask_keep] = depth[mask_keep]
+        rgbd = np.append(rgb, np.expand_dims(sparse_depth, axis=2), axis=2)
+        return rgbd
 
-        return sparse_depth
-
-    def dense_to_sparse(self, rgb, depth, max_depth=0.0, dilate_kernel=3, dilate_iterations=1):
+    def dense_to_sparse(self, rgb, depth, max_depth=np.inf, dilate_kernel=3, dilate_iterations=1):
+        #print('depth', depth)
+        #print('rgb', rgb.shape)
         gray = self.rgb2grayscale(rgb)
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         gx = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=5)
@@ -68,9 +74,12 @@ class DepthDataset(BaseDataset):
 
         depth_mask = np.bitwise_and(depth != 0.0, depth <= max_depth)
 
-        edge_fraction = float(self.num_samples) / np.size(depth)
+        edge_fraction = float(self.opt.num_samples) / np.size(depth)
 
         mag = cv2.magnitude(gx, gy)
+        #print('mag', mag.shape)
+        #print('depth_mask', depth_mask.shape)
+        #print(mag[depth_mask])
         min_mag = np.percentile(mag[depth_mask], 100 * (1.0 - edge_fraction))
         mag_mask = mag >= min_mag
 
@@ -79,6 +88,7 @@ class DepthDataset(BaseDataset):
             cv2.dilate(mag_mask.astype(np.uint8), kernel, iterations=dilate_iterations)
 
         mask = np.bitwise_and(mag_mask, depth_mask)
+        #print('mask', mask.shape)
         return mask
 
     def rgb2grayscale(self, rgb):
