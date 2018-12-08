@@ -75,6 +75,7 @@ for i, data in enumerate(dataset):
                            ('real_image', real_image.numpy())])
     img_path = data['path']
     print('process image... %s' % img_path)
+    visuals = visualizer.visulize_depth(visuals)
     visualizer.save_images(webpage, visuals, img_path)
 
     # calculate losses
