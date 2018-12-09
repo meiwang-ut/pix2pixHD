@@ -148,7 +148,7 @@ class Visualizer():
                 continue
             data = np.mean(visual[key], axis=0)
             #print("data", data.shape)
-            """data[data == 0.0] = np.nan
+            data[data == 0.0] = np.nan
 
             maxdepth = np.nanmax(data)
             mindepth = np.nanmin(data)
@@ -171,10 +171,12 @@ class Visualizer():
             gray[np.isnan(data), -1] = 0.5
 
             gray = (gray * 255).astype(np.uint8)
-            #print(gray.shape)"""
+            visual[key] = gray
+            #print(gray.shape)
+            """
             depth_relative = (data - d_min) / (d_max - d_min)
             rst = 255 * cmap(depth_relative)[:, :, :3]  # H, W, C
-            visual[key] = rst
+            visual[key] = rst"""
         if 'input_label' in visual.keys():
             data = visual['input_label']
             #print(data.shape)
