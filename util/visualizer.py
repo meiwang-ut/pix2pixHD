@@ -62,13 +62,14 @@ class Visualizer():
 
         if self.use_html: # save images to a html file
             for label, image_numpy in visuals.items():
+                save_rgb = label == 'input_label'
                 if isinstance(image_numpy, list):
                     for i in range(len(image_numpy)):
                         img_path = os.path.join(self.img_dir, 'epoch%.3d_%s_%d.png' % (epoch, label, i))
-                        util.save_image(image_numpy[i], img_path)
+                        util.save_image(image_numpy[i], img_path, save_rgb=save_rgb)
                 else:
                     img_path = os.path.join(self.img_dir, 'epoch%.3d_%s.png' % (epoch, label))
-                    util.save_image(image_numpy, img_path)
+                    util.save_image(image_numpy, img_path, save_rgb=save_rgb)
 
             # update website
             webpage = html.HTML(self.web_dir, 'Experiment name = %s' % self.name, refresh=30)
